@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         Dark Mode + Space Toggle for ikanbot.com (Modular)
+// @name         Dark Mode + Space Toggle for ikanbot.com
 // @namespace    Violentmonkey Scripts
 // @match        https://v.ikanbot.com/*
 // @grant        none
-// @version      1.5
-// @author       yeong0809 (modularized by ChatGPT)
-// @description  Modular dark theme + space toggle video + pause video on load + toggle button + efficient load handlers
+// @version      1.10
+// @author       yeong0809
+// @description  Dark theme + space toggle video + pause video on load
 // @license      MIT
-// @run-at       document-end
+// @run-at       document-start
 // @icon         https://v.ikanbot.com/favicon.ico
 // ==/UserScript==
 
@@ -37,7 +37,15 @@
       }
     }
 
-    return { waitForBody };
+    function debounce(fn, delay) {
+      let timer = null;
+      return (...args) => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    return { waitForBody, debounce };
   })();
 
   /*** DARK MODE MODULE ***/
@@ -133,7 +141,19 @@
       setEnabled(!isEnabled());
     }
 
-    return { enable, disable, isEnabled, setEnabled, toggle, createStyleElement };
+    // Early injection to reduce white flash
+    function injectEarlyStyle() {
+      if (document.head && !document.getElementById(CONSTANTS.STYLE_ID)) {
+        const el = document.createElement('style');
+        el.id = CONSTANTS.STYLE_ID;
+        el.textContent = css;
+        document.head.appendChild(el);
+        styleEl = el; // keep reference
+        styleEl.disabled = !isEnabled();
+      }
+    }
+
+    return { enable, disable, isEnabled, setEnabled, toggle, createStyleElement, injectEarlyStyle };
   })();
 
   /*** TOGGLE BUTTON MODULE ***/
@@ -252,32 +272,48 @@
       document.addEventListener('keydown', handleSpacebar);
     }
 
-    // Efficient pauseVideoWhenReady using MutationObserver + loadeddata event
     function pauseVideoWhenReady() {
-      const video = getVideo();
-      if (video) {
+      const vid = getVideo();
+
+      if (vid) {
+        // If video is ready, pause immediately
+        if (vid.readyState >= 2) {
+          pauseVideo();
+          return;
+        }
+
+        // Otherwise, wait for it to load data then pause
         const onReady = () => {
           pauseVideo();
-          video.removeEventListener('loadeddata', onReady);
-          console.log('[VideoController] Video paused on load (immediate)');
+          vid.removeEventListener('loadeddata', onReady);
+          vid.removeEventListener('canplay', onReady);
         };
-        video.addEventListener('loadeddata', onReady);
-        if (video.readyState >= 2) onReady();
+
+        vid.addEventListener('loadeddata', onReady);
+        vid.addEventListener('canplay', onReady);
         return;
       }
 
-      // Video not found yet - observe DOM mutations
+      // If no video found yet, keep observing for new video element
       const observer = new MutationObserver((mutations, obs) => {
         const video = getVideo();
         if (video) {
+          // Same pause logic once video found
+          if (video.readyState >= 2) {
+            pauseVideo();
+            obs.disconnect();
+            return;
+          }
+
           const onReady = () => {
             pauseVideo();
             video.removeEventListener('loadeddata', onReady);
+            video.removeEventListener('canplay', onReady);
             obs.disconnect();
-            console.log('[VideoController] Video paused on load (observer)');
           };
+
           video.addEventListener('loadeddata', onReady);
-          if (video.readyState >= 2) onReady();
+          video.addEventListener('canplay', onReady);
         }
       });
 
@@ -289,28 +325,55 @@
 
   /*** SCROLL CONTROLLER MODULE ***/
   const ScrollController = (() => {
-    // Efficient scrollToLastEpisode using MutationObserver
-    function scrollToLastEpisode() {
-      const episodes = document.querySelectorAll('[name="lineData"]');
-      if (episodes.length > 0) {
-        episodes[episodes.length - 1].scrollIntoView({ behavior: 'auto' });
-        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    function scrollToLastEpisode(elem) {
+      // If there is an active tag, scroll to that first
+      const active = elem.querySelector('.active[name="lineData"]');
+      if (active) {
+        active.scrollIntoView({ behavior: 'auto' });
         return;
       }
 
-      const observer = new MutationObserver((mutations, obs) => {
-        const episodes = document.querySelectorAll('[name="lineData"]');
-        if (episodes.length > 0) {
-          episodes[episodes.length - 1].scrollIntoView({ behavior: 'auto' });
-          window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-          obs.disconnect();
-        }
-      });
-
-      observer.observe(document.body, { childList: true, subtree: true });
+      const episodes = elem.querySelectorAll('[name="lineData"]');
+      if (episodes.length > 0) {
+        episodes[episodes.length - 1].scrollIntoView({ behavior: 'auto' });
+      }
     }
 
-    return { scrollToLastEpisode };
+    function scrollAllLineRes() {
+      const lineResElements = document.querySelectorAll('.line-res');
+      if (lineResElements.length === 0) return;
+
+      lineResElements.forEach(el => scrollToLastEpisode(el));
+
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+
+    function setupVisibilityHandler() {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          // Optional: could scroll back to top smoothly here if desired
+          // window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+    }
+
+    function init() {
+      if (document.querySelectorAll('.line-res').length === 0) {
+        const observer = new MutationObserver((mutations, obs) => {
+          if (document.querySelectorAll('.line-res').length > 0) {
+            scrollAllLineRes();
+            obs.disconnect();
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      } else {
+        scrollAllLineRes();
+      }
+
+      setupVisibilityHandler();
+    }
+
+    return { init };
   })();
 
   /*** MAIN INIT FUNCTION ***/
@@ -320,6 +383,9 @@
       return;
     }
 
+    // Inject dark mode style as early as possible to avoid white flash
+    DarkMode.injectEarlyStyle();
+
     DarkMode.setEnabled(DarkMode.isEnabled());
 
     ToggleButton.create();
@@ -328,12 +394,14 @@
 
     VideoController.setupShortcut();
 
-    ScrollController.scrollToLastEpisode();
+    ScrollController.init();
 
-    // Observe DOM changes to re-inject dark mode styles if enabled
-    const observer = new MutationObserver(() => {
+    // Debounced MutationObserver to avoid too frequent reinjections
+    const debouncedReinject = Utils.debounce(() => {
       if (DarkMode.isEnabled()) DarkMode.createStyleElement();
-    });
+    }, 200);
+
+    const observer = new MutationObserver(debouncedReinject);
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
