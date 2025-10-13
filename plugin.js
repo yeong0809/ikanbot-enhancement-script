@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         Dark Mode + Space Toggle for ikanbot.com
+// @name         Dark Mode + Space Toggle for ikanbot.com (Modular)
 // @namespace    Violentmonkey Scripts
 // @match        https://v.ikanbot.com/*
 // @grant        none
-// @version      1.3
-// @author       yeong0809
-// @description  Modular dark theme + space toggle video + pause video on load + toggle button
+// @version      1.5
+// @author       yeong0809 (modularized by ChatGPT)
+// @description  Modular dark theme + space toggle video + pause video on load + toggle button + efficient load handlers
 // @license      MIT
 // @run-at       document-end
 // @icon         https://v.ikanbot.com/favicon.ico
@@ -22,9 +22,9 @@
     PLAYER_ID: 'ikanbot-player',
   };
 
-  /*** UTILS ***/
-  const Utils = {
-    waitForBody(callback) {
+  /*** UTILS MODULE ***/
+  const Utils = (() => {
+    function waitForBody(callback) {
       if (document.body) callback();
       else {
         const observer = new MutationObserver(() => {
@@ -35,8 +35,10 @@
         });
         observer.observe(document.documentElement, { childList: true });
       }
-    },
-  };
+    }
+
+    return { waitForBody };
+  })();
 
   /*** DARK MODE MODULE ***/
   const DarkMode = (() => {
@@ -108,8 +110,7 @@
     }
 
     function enable() {
-      const style = createStyleElement();
-      style.disabled = false;
+      createStyleElement().disabled = false;
     }
 
     function disable() {
@@ -144,6 +145,8 @@
 
       btn = document.createElement('button');
       btn.id = CONSTANTS.TOGGLE_BTN_ID;
+      btn.title = 'Toggle Dark Mode';
+      btn.setAttribute('aria-pressed', 'false');
 
       Object.assign(btn.style, {
         position: 'fixed',
@@ -166,7 +169,10 @@
 
       btn.addEventListener('mouseenter', () => (btn.style.opacity = '1'));
       btn.addEventListener('mouseleave', () => (btn.style.opacity = '0.8'));
-      btn.addEventListener('click', () => DarkMode.toggle());
+      btn.addEventListener('click', () => {
+        DarkMode.toggle();
+        btn.setAttribute('aria-pressed', DarkMode.isEnabled() ? 'true' : 'false');
+      });
 
       Utils.waitForBody(() => {
         if (!document.body.contains(btn)) document.body.appendChild(btn);
@@ -180,6 +186,7 @@
     function update(enabled) {
       if (!btn) return;
       btn.textContent = enabled ? '🌙 Dark On' : '☀️ Dark Off';
+      btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
     }
 
     return { create, update };
@@ -198,26 +205,30 @@
     }
 
     function pauseVideo() {
-      const player = getPlayer();
       const video = getVideo();
-      if (!player || !video) return false;
+      if (!video) return false;
 
       if (!video.paused) video.pause();
 
-      player.classList.add('vjs-paused');
-      player.classList.remove('vjs-playing');
+      const player = getPlayer();
+      if (player) {
+        player.classList.add('vjs-paused');
+        player.classList.remove('vjs-playing');
+      }
       return true;
     }
 
     function playVideo() {
-      const player = getPlayer();
       const video = getVideo();
-      if (!player || !video) return false;
+      if (!video) return false;
 
       if (video.paused) video.play();
 
-      player.classList.remove('vjs-paused');
-      player.classList.add('vjs-playing');
+      const player = getPlayer();
+      if (player) {
+        player.classList.remove('vjs-paused');
+        player.classList.add('vjs-playing');
+      }
       return true;
     }
 
@@ -241,35 +252,66 @@
       document.addEventListener('keydown', handleSpacebar);
     }
 
-    function pauseVideoWhenReady(maxRetries = 100, intervalMs = 100) {
-      let retries = 0;
-      const timer = setInterval(() => {
-        if (pauseVideo()) {
-          clearInterval(timer);
-          console.log('[VideoController] Video paused on load');
-        } else if (++retries >= maxRetries) {
-          clearInterval(timer);
-          console.warn('[VideoController] Could not find video to pause');
+    // Efficient pauseVideoWhenReady using MutationObserver + loadeddata event
+    function pauseVideoWhenReady() {
+      const video = getVideo();
+      if (video) {
+        const onReady = () => {
+          pauseVideo();
+          video.removeEventListener('loadeddata', onReady);
+          console.log('[VideoController] Video paused on load (immediate)');
+        };
+        video.addEventListener('loadeddata', onReady);
+        if (video.readyState >= 2) onReady();
+        return;
+      }
+
+      // Video not found yet - observe DOM mutations
+      const observer = new MutationObserver((mutations, obs) => {
+        const video = getVideo();
+        if (video) {
+          const onReady = () => {
+            pauseVideo();
+            video.removeEventListener('loadeddata', onReady);
+            obs.disconnect();
+            console.log('[VideoController] Video paused on load (observer)');
+          };
+          video.addEventListener('loadeddata', onReady);
+          if (video.readyState >= 2) onReady();
         }
-      }, intervalMs);
+      });
+
+      observer.observe(document.body, { childList: true, subtree: true });
     }
 
     return { setupShortcut, pauseVideoWhenReady };
   })();
 
-  /*** SCROLL UTILITY ***/
-  function scrollToLastEpisode(maxAttempts = 100, intervalMs = 100) {
-    let attempts = 0;
-    const interval = setInterval(() => {
+  /*** SCROLL CONTROLLER MODULE ***/
+  const ScrollController = (() => {
+    // Efficient scrollToLastEpisode using MutationObserver
+    function scrollToLastEpisode() {
       const episodes = document.querySelectorAll('[name="lineData"]');
       if (episodes.length > 0) {
         episodes[episodes.length - 1].scrollIntoView({ behavior: 'auto' });
-        clearInterval(interval);
         window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        return;
       }
-      if (++attempts >= maxAttempts) clearInterval(interval);
-    }, intervalMs);
-  }
+
+      const observer = new MutationObserver((mutations, obs) => {
+        const episodes = document.querySelectorAll('[name="lineData"]');
+        if (episodes.length > 0) {
+          episodes[episodes.length - 1].scrollIntoView({ behavior: 'auto' });
+          window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+          obs.disconnect();
+        }
+      });
+
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    return { scrollToLastEpisode };
+  })();
 
   /*** MAIN INIT FUNCTION ***/
   function init() {
@@ -286,7 +328,7 @@
 
     VideoController.setupShortcut();
 
-    scrollToLastEpisode();
+    ScrollController.scrollToLastEpisode();
 
     // Observe DOM changes to re-inject dark mode styles if enabled
     const observer = new MutationObserver(() => {
