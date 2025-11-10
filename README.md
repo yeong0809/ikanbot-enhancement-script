@@ -6,7 +6,8 @@ A modular, single-file userscript that enhances your [ikanbot.com](https://v.ika
 - **Spacebar key** to toggle video play/pause easily  
 - **Auto-pause** video on page load to avoid surprise playback  
 - **Toggle button** fixed at the top-right corner to switch dark mode on/off  
-- **Auto-scroll** to the last episode in the episode list on page load  
+- **Auto-scroll** to the last episode in the episode list on page load
+- **Resorted the sequence** of episodes by descending order  
 
 ---
 
