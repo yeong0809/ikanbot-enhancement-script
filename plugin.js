@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         Dark Mode + Space Toggle for ikanbot.com
+// @name         Dark Mode + Space Toggle for ikanbot.com (with Desc Sort)
 // @namespace    Violentmonkey Scripts
 // @match        https://v.ikanbot.com/*
 // @grant        none
-// @version      1.10
+// @version      1.11
 // @author       yeong0809
-// @description  Dark theme + space toggle video + pause video on load
+// @description  Dark theme + space toggle video + pause video on load + descending sort lineData
 // @license      MIT
 // @run-at       document-start
 // @icon         https://v.ikanbot.com/favicon.ico
@@ -141,14 +141,13 @@
       setEnabled(!isEnabled());
     }
 
-    // Early injection to reduce white flash
     function injectEarlyStyle() {
       if (document.head && !document.getElementById(CONSTANTS.STYLE_ID)) {
         const el = document.createElement('style');
         el.id = CONSTANTS.STYLE_ID;
         el.textContent = css;
         document.head.appendChild(el);
-        styleEl = el; // keep reference
+        styleEl = el;
         styleEl.disabled = !isEnabled();
       }
     }
@@ -276,13 +275,11 @@
       const vid = getVideo();
 
       if (vid) {
-        // If video is ready, pause immediately
         if (vid.readyState >= 2) {
           pauseVideo();
           return;
         }
 
-        // Otherwise, wait for it to load data then pause
         const onReady = () => {
           pauseVideo();
           vid.removeEventListener('loadeddata', onReady);
@@ -294,11 +291,9 @@
         return;
       }
 
-      // If no video found yet, keep observing for new video element
       const observer = new MutationObserver((mutations, obs) => {
         const video = getVideo();
         if (video) {
-          // Same pause logic once video found
           if (video.readyState >= 2) {
             pauseVideo();
             obs.disconnect();
@@ -326,14 +321,28 @@
   /*** SCROLL CONTROLLER MODULE ***/
   const ScrollController = (() => {
     function scrollToLastEpisode(elem) {
-      // If there is an active tag, scroll to that first
+      // Get all episodes
+      let episodes = Array.from(elem.querySelectorAll('[name="lineData"]'));
+
+      // Sort descending by numeric value (or fallback to text comparison)
+      const getNumber = s => {
+        const match = s.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      };
+
+      episodes.sort((a, b) => getNumber(b.textContent) - getNumber(a.textContent));
+
+      // Re-append sorted elements
+      episodes.forEach(ep => elem.appendChild(ep));
+
+      // Scroll to the first active if exists
       const active = elem.querySelector('.active[name="lineData"]');
       if (active) {
         active.scrollIntoView({ behavior: 'auto' });
         return;
       }
 
-      const episodes = elem.querySelectorAll('[name="lineData"]');
+      // Otherwise scroll to last
       if (episodes.length > 0) {
         episodes[episodes.length - 1].scrollIntoView({ behavior: 'auto' });
       }
@@ -351,8 +360,6 @@
     function setupVisibilityHandler() {
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-          // Optional: could scroll back to top smoothly here if desired
-          // window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       });
     }
@@ -383,7 +390,6 @@
       return;
     }
 
-    // Inject dark mode style as early as possible to avoid white flash
     DarkMode.injectEarlyStyle();
 
     DarkMode.setEnabled(DarkMode.isEnabled());
@@ -396,7 +402,6 @@
 
     ScrollController.init();
 
-    // Debounced MutationObserver to avoid too frequent reinjections
     const debouncedReinject = Utils.debounce(() => {
       if (DarkMode.isEnabled()) DarkMode.createStyleElement();
     }, 200);
@@ -405,7 +410,6 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  // Start everything
   init();
 
 })();
