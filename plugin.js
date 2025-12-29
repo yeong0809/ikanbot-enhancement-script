@@ -3,7 +3,7 @@
 // @namespace    Violentmonkey Scripts
 // @match        https://v.ikanbot.com/*
 // @grant        none
-// @version      1.12
+// @version      1.13
 // @author       yeong0809
 // @description  Dark theme + space toggle video + pause video on load + descending sort + previous/next episode buttons
 // @license      MIT
@@ -265,7 +265,7 @@
     function goToEpisode(index) { const episodes=getAllEpisodes(); if(!episodes.length) return; index=Math.max(0,Math.min(index,episodes.length-1)); episodes.forEach(ep=>ep.classList.remove('active')); episodes[index].classList.add('active'); episodes[index].scrollIntoView({behavior:'auto'}); episodes[index].click?.(); }
     function goToPrevious() { const idx=getCurrentEpisodeIndex(); if(idx>0) goToEpisode(idx-1); }
     function goToNext() { const idx=getCurrentEpisodeIndex(); const episodes=getAllEpisodes(); if(idx>=0 && idx<episodes.length-1) goToEpisode(idx+1); }
-    function handleArrowKeys(event) { if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return; if(event.code==='ArrowLeft'){ event.preventDefault(); goToPrevious(); } else if(event.code==='ArrowRight'){ event.preventDefault(); goToNext(); } }
+    function handleArrowKeys(event) { if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return; if(event.code==='Comma'){ event.preventDefault(); goToPrevious(); } else if(event.code==='Period'){ event.preventDefault(); goToNext(); } }
     function setupShortcut() { document.addEventListener('keydown', handleArrowKeys); }
     return { setupShortcut, goToPrevious, goToNext };
   })();
