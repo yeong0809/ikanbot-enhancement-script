@@ -14,5 +14,6 @@
 // @require      https://raw.githubusercontent.com/yeong0809/ikanbot-enhancement-script/main/episodeController.js
 // @require      https://raw.githubusercontent.com/yeong0809/ikanbot-enhancement-script/main/scrollController.js
 // @require      https://raw.githubusercontent.com/yeong0809/ikanbot-enhancement-script/main/buttonWrapper.js
+// @require      https://raw.githubusercontent.com/yeong0809/ikanbot-enhancement-script/main/global.js
 // @require      https://raw.githubusercontent.com/yeong0809/ikanbot-enhancement-script/main/main.js
 // ==/UserScript==

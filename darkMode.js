@@ -12,7 +12,6 @@
         a:hover { color: #88ccff !important; }
         ::selection { background: var(--selection-bg) !important; color: var(--text-color) !important; }
         input,textarea,select,button { background-color: var(--input-bg) !important; color: var(--text-color) !important; border:1px solid var(--input-border) !important; }
-        @media (min-width: 1920px) { .container { width: 1800px; } }
         .vjs-progress-holder { background-color: lightyellow !important; }
         .vjs-load-progress { background-color: orange !important; }
         .vjs-play-progress { background-color: green !important; }
