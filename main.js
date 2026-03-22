@@ -7,6 +7,7 @@
         window.VideoController.pauseVideoWhenReady();
         window.VideoController.setupShortcut();
         window.EpisodeController.setupShortcut();
+        window.EpisodeController.createEpisodeBar();
         window.ScrollController.init();
 
         const debouncedReinject = window.Utils.debounce(()=>{
