@@ -2,7 +2,12 @@
     const GLOBAL_CSS = `
         @media (min-width: 1920px) {
             .container {
-                width: 1800px !important;
+                width: 1680px !important;
+            }
+        }
+        @media (min-width: 1680px) {
+            .container {
+                width: 1280px !important;
             }
         }
     `;
