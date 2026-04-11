@@ -60,4 +60,4 @@ A modular, single-file userscript that enhances your [ikanbot.com](https://v.ika
 ## License
 
 MIT License  
-Author: [yeong0809](https://github.com/yeong0809) (modularized & fixed by ChatGPT)  
+Author: [yeong0809](https://github.com/yeong0809)
