@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ikanbot Enhancer Modular
 // @namespace    Violentmonkey Scripts
-// @match        https://v.ikanbot.com/*
+// @match        https://*.ikanbot.com/*
 // @grant        none
 // @version      1.0
 // @author       yeong0809
